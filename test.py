@@ -27,3 +27,6 @@ class TestExternalAPIs(unittest.TestCase):
     def test_be_iata(self):
         response = functions.get_iata_be("Мос")
         self.assertGreater(len(response), 0, "response has 0 matched city-country pairs")
+
+        response = functions.get_iata_be("Абырвалг!")
+        self.assertEquals(len(response), 0)

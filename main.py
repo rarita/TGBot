@@ -1,8 +1,12 @@
+import datetime
+
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, bot
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, RegexHandler, ConversationHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, RegexHandler, ConversationHandler, \
+    CallbackQueryHandler
 from config import TOKEN
 import logging
-from functions import get_iata, get_url
+from functions import get_iata, get_url, get_iata_be
+from chat_utils import *
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -10,34 +14,147 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-TYPING_DEPARTURE, TYPING_ARRIVAL = range(2)
+# State list
+TYPING_DEPARTURE, \
+TYPING_ARRIVAL, \
+PARSE_CITY, \
+CHOOSE_CITY, \
+CHOOSE_DATE, \
+PARSE_DATE, \
+SHOW_FLIGHTS = range(7)
 
 
 def start(update, context):
     user = update.message.from_user
-    logger.info("User %s has said that her name %s.", user.first_name)
+    logger.info("User %s has said that her name %s.", user.id, user.first_name)
     update.message.reply_text("Привет, " + user.first_name + "! Введи город отправления")
-    return TYPING_DEPARTURE
+    return PARSE_CITY
 
 
-def input_departure(update, departure_iata):
+def parse_city(update, context):
+    query = update.message.text
+    guesses = get_iata_be(query)
+
+    if len(guesses) == 0:
+        logger.info("Can't found city by query %s", query)
+        update.message.reply_text("К сожалению, не могу найти такой город... Попробуем ещё раз?")
+        update.message.reply_text(get_ch_city_text(context))
+        return PARSE_CITY
+    if len(guesses) == 1:
+        logger.info("Found single city by query %s: %s", query, guesses[0]['value'])
+        if "src" not in context.user_data:
+            context.user_data['src'] = guesses[0]
+            update.message.reply_text(
+                "Отлично! Отправляемся из {} Куда отправимся?".format(guesses[0]['value'])
+            )
+            return PARSE_CITY
+        else:
+            context.user_data['dest'] = guesses[0]
+            update.message.reply_text(
+                "Замечательно! Летим в {} Теперь нужно выбрать дату вылета:".format(guesses[0]['value']),
+                reply_markup=kbrd_pick_date()
+            )
+            return CHOOSE_DATE
+
+    logger.info("Too many cities were found by query %s: %d", query, len(guesses))
+    context.user_data['city_guesses'] = guesses
+    update.message.reply_text(
+        "Я нашел несколько городов по твоему запросу, выбери верный :)",
+        reply_markup=kbrd_markup_for_correction(guesses)
+    )
+    return CHOOSE_CITY
+
+def choose_city(update, context):
+    text = update.message.text
+    guess = next(filter(lambda g: g['value'] == text, context.user_data['city_guesses']), None)
+
+    if guess is None or guess == NO_CORRECT_BUTTON:
+        logger.info("User failed or refused to select city, text provided: %s", text)
+        update.message.reply_text("Пожалуйста, попробуй ввести город снова")
+        update.message.reply_text(
+            get_ch_city_text(context),
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
+
+    # set src or dest and proceed
+    logger.info("User selected %s city", guess['value'])
+    if "src" not in context.user_data:
+        context.user_data['src'] = guess
+        update.message.reply_text(
+            "Отлично! Куда отправимся?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
+
+    context.user_data['dest'] = guess
+    update.message.reply_text(
+        "Замечательно! Теперь нужно выбрать дату вылета:",
+        reply_markup=kbrd_pick_date()
+    )
+    return CHOOSE_DATE
+
+
+def choose_date(update, context):
+    text = update.message.text
+    today = datetime.date.today()
+
+    if text == TODAY_BUTTON:
+        timedelta = 0
+    elif text == TOMORROW_BUTTON:
+        timedelta = 1
+    elif text == DATOMORROW_BUTTON:
+        timedelta = 2
+    else:
+        if (text == CHOOSE_DATE_BUTTON):
+            descr = "Хорошо, введи время вылета сам, как пример - {}"
+        else:
+            descr = "Такого времени я не знаю :/\nПопробуй ввести время вручную, например {}"
+        update.message.reply_text(
+            descr.format(today.strftime("%d.%m.%Y")),
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_DATE
+
+    update.message.reply_text(
+        "Супер! Поищем билеты на {}... ".format(text.lower()),
+        reply_markup=ReplyKeyboardRemove()
+    )
+    context.user_data['out_date'] = today + datetime.timedelta(days=timedelta)
+    logger.info(
+        "Parameter out_date set to %s",
+        context.user_data['out_date'].strftime("%d.%m.%Y")
+    )
+
+    return PARSE_CITY
+
+
+def parse_date(update, context):
+    # temp reset
+    context.user_data = {}
+    update.message.reply_text("Пока что это все! Спасибо за пользование ботом!")
+    return PARSE_CITY
+
+def input_departure(update, context):
     user = update.message.from_user
     departure_city = update.message.text
-    city = get_iata(departure_city) #MOW
+    city = get_iata(departure_city)  # MOW
     if city is None:
         bot.send_message(chat_id=update.message.chat_id,
                          text="Кажется, я не знаю этот город. Может быть вы выберете другой город поблизости?")
         logger.info("User %s  has sent an incorrect departure city %s.", user.first_name, departure_city)
         return TYPING_DEPARTURE
-    departure_iata = city
+    context.user_data['city'] = departure_city
     logger.info("User %s has sent a departure city %s.", user.first_name, departure_city)
-    update.message.reply_text(f'{user.first_name}, город вылета - {departure_city}, код аэропорта - {departure_iata}. Введите город прилета.')
+    update.message.reply_text(
+        f'{user.first_name}, город вылета - {departure_city}, код аэропорта - {city}. Введите город прилета.')
     return TYPING_ARRIVAL
 
 
-def input_arrival(update, arrival_iata):
+def input_arrival(update, context):
     user = update.message.from_user
-    arrival_city = update.message.text #HSE
+    update.message.reply_text("state: {}".format(context.user_data))
+    arrival_city = update.message.text  # HSE
     city = get_iata(arrival_city)
     if city is None:
         bot.send_message(chat_id=update.message.chat_id,
@@ -87,6 +204,15 @@ def main():
             TYPING_DEPARTURE: [MessageHandler(Filters.text, input_departure, pass_user_data=True)],
 
             TYPING_ARRIVAL: [MessageHandler(Filters.text, input_arrival, pass_user_data=True)],
+
+            PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
+
+            CHOOSE_CITY: [MessageHandler(Filters.text, choose_city, pass_user_data=True)],
+
+            CHOOSE_DATE: [MessageHandler(Filters.text, choose_date, pass_user_data=True)],
+
+            PARSE_DATE: [MessageHandler(Filters.text, parse_date, pass_user_data=True)]
+
         },
 
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.text, unknown)]
