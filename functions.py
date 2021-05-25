@@ -1,8 +1,7 @@
 import json
 import re
-import dateparser
-import datetime
 import requests
+import config
 
 
 def get_iata(city):
@@ -14,6 +13,46 @@ def get_iata(city):
         print('Совпадений не найдено!')
     else:
         return iata[0]
+
+
+# get possible IATA codes from service backend
+def get_iata_be(query):
+    rq_url = "{}/autocomplete".format(config.BACKEND_ORIGIN)
+    rq_params = {
+        "term": query
+    }
+    return requests.get(rq_url, rq_params).json()
+
+
+# get itineraries from backend by specified parameters
+def get_itineraries_be(src_iata, dest_iata, outbound_from, outbound_to):
+    rq_url = '{}/paths_for'.format(config.BACKEND_ORIGIN)
+    rq_json = {
+        "countryCode": "RU",
+        "currencyCode": "RUB",
+        "locale": "ru-RU",
+        "originCode": src_iata,
+        "destinationCode": dest_iata,
+        "outboundDateFrom": [
+            outbound_from.year,
+            outbound_from.month,
+            outbound_from.day
+        ],
+        "outboundDateTo": [
+            outbound_to.year,
+            outbound_to.month,
+            outbound_to.day
+        ],
+        "adultsCount": 1,
+        "childrenCount": 0,
+        "infantsCount": 0,
+        "typesAllowed": [
+            "AIRCRAFT",
+            "BUS",
+            "TRAIN"
+        ]
+    }
+    return requests.post(rq_url, json=rq_json).json()
 
 
 def get_url(departure_iata, arrival_iata, day_month):
