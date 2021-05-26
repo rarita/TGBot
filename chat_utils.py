@@ -3,7 +3,7 @@ import logging
 import time
 
 import telegram
-from telegram import KeyboardButton
+from telegram import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket
 
 # Enable logging
@@ -103,6 +103,7 @@ def get_itin_route(itin):
 
     return "-".join(accum)
 
+
 def get_itin_route_flavor(itin):
     itin_size = len(itin['itin'])
     if itin_size == 1:
@@ -114,9 +115,18 @@ def get_itin_route_flavor(itin):
         return "{} пересадки".format(itin_size - 1)
 
 
+def itin_to_btn(itin):
+    text = "Купить билет {} - {} за {} {}".format(
+        get_airport_flavor(itin['source']),
+        get_airport_flavor(itin['destination']),
+        "EUR",
+        itin['baseCost']
+    )
+    return [InlineKeyboardButton(text, url=itin['bookingLink'])]
+
+
 # defines rendering behavior to draw a single itinerary
 def render_itinerary(itin, update):
-
     dep_time = list_to_py_datetime(itin['itin'][0]['departureTime'])
     arr_time = list_to_py_datetime(itin['itin'][-1]['arrivalTime'])
     src = itin['src']
@@ -142,7 +152,12 @@ def render_itinerary(itin, update):
         get_itin_route_flavor(itin)
     )
 
-    update.message.reply_text(m_text_template)
+    kbrd = list(map(itin_to_btn, itin['itin']))
+
+    update.message.reply_text(
+        m_text_template,
+        reply_markup=InlineKeyboardMarkup(list(kbrd))
+    )
 
 
 # find flights for user-defined context and display it
@@ -160,6 +175,10 @@ def find_flights_for_context(update, context):
         logger.info("Found %d raw itineraries by user query", len(raw_itins))
 
         filt_itins = filter_itineraries_be(raw_itins)
+
+        if len(filt_itins) == 0:
+            update.message.reply_text("К сожалению, по указанному запросу перелетов не найдено :(")
+
         for itin in filt_itins:
             render_itinerary(itin, update)
 
