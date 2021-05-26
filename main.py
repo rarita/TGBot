@@ -133,6 +133,7 @@ def parse_date(update, context):
     # temp reset
     context.user_data = {}
     update.message.reply_text("Пока что это все! Спасибо за пользование ботом!")
+    update.message.reply_text("Можете ещё поиграться - для этого снова введите город отправления")
     return PARSE_CITY
 
 def input_departure(update, context):
