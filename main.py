@@ -21,7 +21,8 @@ PARSE_CITY, \
 CHOOSE_CITY, \
 CHOOSE_DATE, \
 PARSE_DATE, \
-SHOW_FLIGHTS = range(7)
+SHOW_FLIGHTS, \
+END_CONV = range(8)
 
 
 def start(update, context):
@@ -63,6 +64,7 @@ def parse_city(update, context):
         reply_markup=kbrd_markup_for_correction(guesses)
     )
     return CHOOSE_CITY
+
 
 def choose_city(update, context):
     text = update.message.text
@@ -106,7 +108,7 @@ def choose_date(update, context):
     elif text == DATOMORROW_BUTTON:
         timedelta = 2
     else:
-        if (text == CHOOSE_DATE_BUTTON):
+        if text == CHOOSE_DATE_BUTTON:
             descr = "Хорошо, введи время вылета сам, как пример - {}"
         else:
             descr = "Такого времени я не знаю :/\nПопробуй ввести время вручную, например {}"
@@ -126,51 +128,44 @@ def choose_date(update, context):
         context.user_data['out_date'].strftime("%d.%m.%Y")
     )
 
-    return PARSE_CITY
+    return find_flights_for_context(update, context)
 
 
 def parse_date(update, context):
+    text = update.message.text
+    decline_reason = "Не удалось прочитать введенную дату"
+
+    try:
+        p_date = datetime.datetime.strptime(text, "%d.%m.%Y")
+        if p_date < datetime.date.today():
+            decline_reason = "Дата вылета не может быть в прошлом"
+            raise Exception(decline_reason)
+
+        context.user_data["out_date"] = p_date
+        return find_flights_for_context(update, context)
+    except Exception as exc:
+        # inform about exception and retry
+        logger.error(exc)
+        update.message.reply_text(
+            "{} :(\nПожалуйста, попробуй ввести ее ещё раз:".format(decline_reason)
+        )
+        return PARSE_DATE
+
     # temp reset
-    context.user_data = {}
     update.message.reply_text("Пока что это все! Спасибо за пользование ботом!")
     update.message.reply_text("Можете ещё поиграться - для этого снова введите город отправления")
     return PARSE_CITY
 
-def input_departure(update, context):
-    user = update.message.from_user
-    departure_city = update.message.text
-    city = get_iata(departure_city)  # MOW
-    if city is None:
-        bot.send_message(chat_id=update.message.chat_id,
-                         text="Кажется, я не знаю этот город. Может быть вы выберете другой город поблизости?")
-        logger.info("User %s  has sent an incorrect departure city %s.", user.first_name, departure_city)
-        return TYPING_DEPARTURE
-    context.user_data['city'] = departure_city
-    logger.info("User %s has sent a departure city %s.", user.first_name, departure_city)
-    update.message.reply_text(
-        f'{user.first_name}, город вылета - {departure_city}, код аэропорта - {city}. Введите город прилета.')
-    return TYPING_ARRIVAL
 
-
-def input_arrival(update, context):
-    user = update.message.from_user
-    update.message.reply_text("state: {}".format(context.user_data))
-    arrival_city = update.message.text  # HSE
-    city = get_iata(arrival_city)
-    if city is None:
-        bot.send_message(chat_id=update.message.chat_id,
-                         text="Похоже, я не знаю этот город. Может быть вы выберете другой город поблизости?")
-        logger.info("User %s  has sent an incorrect destination %s.", user.first_name, arrival_city)
-        return TYPING_ARRIVAL
-    arrival_iata = city
-    logger.info("User %s has sent a destination city %s.", user.first_name, arrival_city)
-    update.message.reply_text(f'{user.first_name}, Введите дату поездки через "-" (2010-01-31)')
-    return TYPING_DEPARTURE
-
+# lock user at the end of conversation
+def end_conversation(update, context):
+    update.message.reply_text("Спасибо за пользование нашим ботом!\nЧтобы начать новый поиск, введи /start!")
+    return END_CONV
 
 def cancel(update, context):
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
+    context.user_data = {}
     update.message.reply_text('До свидания.\n'
                               'Отправьте /start, чтобы снова начать разговор.',
                               reply_markup=ReplyKeyboardRemove())
@@ -202,21 +197,22 @@ def main():
 
         states={
 
-            TYPING_DEPARTURE: [MessageHandler(Filters.text, input_departure, pass_user_data=True)],
-
-            TYPING_ARRIVAL: [MessageHandler(Filters.text, input_arrival, pass_user_data=True)],
-
             PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
 
             CHOOSE_CITY: [MessageHandler(Filters.text, choose_city, pass_user_data=True)],
 
             CHOOSE_DATE: [MessageHandler(Filters.text, choose_date, pass_user_data=True)],
 
-            PARSE_DATE: [MessageHandler(Filters.text, parse_date, pass_user_data=True)]
+            PARSE_DATE: [MessageHandler(Filters.text, parse_date, pass_user_data=True)],
+
+            END_CONV: [MessageHandler(Filters.text, end_conversation, pass_user_data=True)]
 
         },
 
-        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.text, unknown)]
+        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.text, unknown)],
+
+        allow_reentry=True
+
     )
 
     dp.add_handler(conv_handler)
