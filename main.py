@@ -8,6 +8,10 @@ import logging
 from functions import get_iata, get_url, get_iata_be
 from chat_utils import *
 
+# set russian locale
+import locale
+locale.setlocale(locale.LC_ALL, 'ru_RU')
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -28,7 +32,10 @@ END_CONV = range(8)
 def start(update, context):
     user = update.message.from_user
     logger.info("User %s has said that her name %s.", user.id, user.first_name)
-    update.message.reply_text("Привет, " + user.first_name + "! Введи город отправления")
+    update.message.reply_text(
+        "Привет, " + user.first_name + "! Введи город отправления",
+        reply_markup=ReplyKeyboardRemove()
+    )
     return PARSE_CITY
 
 
@@ -136,7 +143,7 @@ def parse_date(update, context):
     decline_reason = "Не удалось прочитать введенную дату"
 
     try:
-        p_date = datetime.datetime.strptime(text, "%d.%m.%Y")
+        p_date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
         if p_date < datetime.date.today():
             decline_reason = "Дата вылета не может быть в прошлом"
             raise Exception(decline_reason)
@@ -150,11 +157,6 @@ def parse_date(update, context):
             "{} :(\nПожалуйста, попробуй ввести ее ещё раз:".format(decline_reason)
         )
         return PARSE_DATE
-
-    # temp reset
-    update.message.reply_text("Пока что это все! Спасибо за пользование ботом!")
-    update.message.reply_text("Можете ещё поиграться - для этого снова введите город отправления")
-    return PARSE_CITY
 
 
 # lock user at the end of conversation

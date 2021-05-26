@@ -1,11 +1,20 @@
+import datetime
+import logging
 import time
 
 import telegram
 from telegram import KeyboardButton
+from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket
 
-from main import *
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 # constants
+from main import END_CONV
+
 NO_CORRECT_BUTTON = "Нужного нет в списке"
 TODAY_BUTTON = "Сегодня"
 TOMORROW_BUTTON = "Завтра"
@@ -47,20 +56,116 @@ def kbrd_pick_date():
     )
 
 
+def get_departure_flavor(dep_time):
+    delta = dep_time.date() - datetime.date.today()
+
+    if delta.days == 0:
+        return "сегодня"
+    elif delta.days == 1:
+        return "завтра"
+    elif delta.days == 2:
+        return "послезавтра"
+
+    return "через {} дней".format(delta.days)
+
+
+def list_to_py_datetime(src):
+    return datetime.datetime(src[0], src[1], src[2], src[3], src[4])
+
+
+def get_itin_price(itin):
+    price = total_price_for_ticket(itin)
+    base_price = total_price_for_ticket(itin, 'baseCost')
+    return "{} {} ({} {})".format(
+        "RUB", price,
+        "EUR", base_price  # itin['itin'][0]['currencyCode']
+    )
+
+
+def get_airport_flavor(airport):
+    return "{} ({})".format(airport['name_RU'], airport['code'])
+
+
+def get_itin_route(itin):
+    accum = []
+    for it in itin['itin']:
+
+        src_txt = get_airport_flavor(it['source'])
+        dst_txt = get_airport_flavor(it['destination'])
+
+        if len(accum) == 0:
+            accum.append(src_txt)
+            accum.append(dst_txt)
+        else:
+            if accum[-1] != src_txt:
+                accum.append(src_txt)
+            accum.append(dst_txt)
+
+    return "-".join(accum)
+
+def get_itin_route_flavor(itin):
+    itin_size = len(itin['itin'])
+    if itin_size == 1:
+        return "без пересадок"
+    elif itin_size == 2:
+        return "1 пересадка"
+    else:
+        # should not be more than 4 transfers
+        return "{} пересадки".format(itin_size - 1)
+
+
 # defines rendering behavior to draw a single itinerary
-def itinerary_renderer(itin):
-    return
+def render_itinerary(itin, update):
 
+    dep_time = list_to_py_datetime(itin['itin'][0]['departureTime'])
+    arr_time = list_to_py_datetime(itin['itin'][-1]['arrivalTime'])
+    src = itin['src']
+    dst = itin['dst']
+    c_src = itin['c_src']
+    c_dst = itin['c_dst']
 
-# sends messages to user representing found flights
-def render_flights_data(update, context):
-    return
+    m_text_template = """
+{} - {}
+Отправление {} ({})
+Прибытие {}
+Цена: {}
+    
+Маршрут: {} ({})
+    """.format(
+        src['name_RU'] + ', ' + c_src['name_RU'],
+        dst['name_RU'] + ', ' + c_dst['name_RU'],
+        dep_time.strftime("%c"),
+        get_departure_flavor(dep_time),
+        arr_time.strftime("%c"),
+        get_itin_price(itin),
+        get_itin_route(itin),
+        get_itin_route_flavor(itin)
+    )
+
+    update.message.reply_text(m_text_template)
 
 
 # find flights for user-defined context and display it
 def find_flights_for_context(update, context):
+    udata = context.user_data
     update.message.reply_text("Начинаю искать перелеты по твоему запросу...")
-    time.sleep(2.5)
+
+    try:
+        raw_itins = get_itineraries_be(
+            udata['src']['id'],
+            udata['dest']['id'],
+            udata['out_date'],
+            udata['out_date']
+        )
+        logger.info("Found %d raw itineraries by user query", len(raw_itins))
+
+        filt_itins = filter_itineraries_be(raw_itins)
+        for itin in filt_itins:
+            render_itinerary(itin, update)
+
+    except Exception as exc:
+        logger.error("Exception occurred during itinerary search", exc)
+        # todo retry one time, then fail miserably
 
     # cleanup lock state as finished
     del context.user_data['src']

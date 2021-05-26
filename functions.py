@@ -3,6 +3,8 @@ import re
 import requests
 import config
 
+from functools import reduce
+
 
 def get_iata(city):
     url = 'http://autocomplete.travelpayouts.com/places2?term=' + city + ''
@@ -22,6 +24,21 @@ def get_iata_be(query):
         "term": query
     }
     return requests.get(rq_url, rq_params).json()
+
+
+def total_price_for_ticket(itin, price_param='cost'):
+    return reduce(
+        lambda acc, item: acc + item,
+        map(lambda i: i[price_param], itin['itin'])
+    )
+
+
+# filter backend itinerary data
+# should be moved to the DB query
+def filter_itineraries_be(itin, optional_ctxt=None):
+    if optional_ctxt is None:
+        return sorted(itin, key=total_price_for_ticket)[:3]
+    raise NotImplemented("Filter with user context not implemented yet")
 
 
 # get itineraries from backend by specified parameters
