@@ -1,6 +1,5 @@
 import datetime
 import logging
-import time
 
 import telegram
 from telegram import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
@@ -90,13 +89,8 @@ def get_itin_route(itin):
     accum = []
     for it in itin['itin']:
 
-        if 'source' not in it or 'destination' not in it:
-            # get data from backend
-            src_txt = get_airport_flavor_be(it['startNode'])
-            dst_txt = get_airport_flavor_be(it['endNode'])
-        else:
-            src_txt = get_airport_flavor(it['source'])
-            dst_txt = get_airport_flavor(it['destination'])
+        src_txt = it['src_flavor']
+        dst_txt = it['dest_flavor']
 
         if len(accum) == 0:
             accum.append(src_txt)
@@ -122,8 +116,8 @@ def get_itin_route_flavor(itin):
 
 def itin_to_btn(itin):
     text = "Купить билет {} - {} за {} {}".format(
-        get_airport_flavor(itin['source']),
-        get_airport_flavor(itin['destination']),
+        itin['src_flavor'],
+        itin['dest_flavor'],
         "EUR",
         itin['baseCost']
     )
@@ -187,6 +181,9 @@ def fix_itin(itin):
     for it in itin['itin']:
         if 'propertyList' in it:
             logger.info("Found itinerary with properties represented by propertyList: " + str(it['id']))
+            # persist flavors
+            it['src_flavor'] = get_airport_flavor_be(it['startNode'])
+            it['dest_flavor'] = get_airport_flavor_be(it['endNode'])
             for prop in it['propertyList']:
                 it[prop['key']] = map_property_from_prop_list(prop)
         else:
@@ -194,6 +191,9 @@ def fix_itin(itin):
             it['arrivalTime'] = list_to_py_datetime(it['arrivalTime'])
             it['departureTime'] = list_to_py_datetime(it['departureTime'])
             it['foundAt'] = list_to_py_datetime(it['foundAt'])
+            # set flavors
+            it['src_flavor'] = get_airport_flavor(it['source'])
+            it['dest_flavor'] = get_airport_flavor(it['destination'])
     return itin
 
 
