@@ -14,11 +14,12 @@ class TestExternalAPIs(unittest.TestCase):
 
     # try to get itineraries from backend
     def test_be_itin(self):
+        out_date = datetime.date.today() + datetime.timedelta(5)
         response = functions.get_itineraries_be(
             "LED",
             "CEK",
-            datetime.date(2021, 6, 5),
-            datetime.date(2021, 6, 5)
+            out_date,
+            out_date
         )
 
         self.assertGreater(len(response), 0, "response has 0 itineraries")
@@ -29,4 +30,8 @@ class TestExternalAPIs(unittest.TestCase):
         self.assertGreater(len(response), 0, "response has 0 matched city-country pairs")
 
         response = functions.get_iata_be("Абырвалг!")
-        self.assertEquals(len(response), 0)
+        self.assertEqual(len(response), 0)
+
+    def test_be_airport_flavor(self):
+        flavor = functions.get_airport_flavor_be(10002)
+        self.assertEqual(flavor, "Пулково (LED)")

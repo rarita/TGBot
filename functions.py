@@ -72,6 +72,14 @@ def get_itineraries_be(src_iata, dest_iata, outbound_from, outbound_to):
     return requests.post(rq_url, json=rq_json).json()
 
 
+def get_airport_flavor_be(node_id):
+    rq_url = "{}/airport_flavor".format(config.BACKEND_ORIGIN)
+    rq_params = {
+        "nodeId": node_id
+    }
+    return requests.get(rq_url, rq_params).text
+
+
 def get_url(departure_iata, arrival_iata, day_month):
     base = 'https://www.aviasales.ru/search/'
     res = base + departure_iata + day_month + arrival_iata
