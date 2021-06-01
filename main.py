@@ -184,7 +184,17 @@ def parse_date(update, context):
             raise Exception(decline_reason)
 
         context.user_data["out_date"] = p_date
-        return find_flights_for_context(update, context)
+        # start flight search in parallel
+        _id = uuid.uuid1()
+        _search = threading.Thread(target=find_flights_for_context, args=(update, context, _sync, _id,))
+        _search.start()
+        _search.join()
+
+        if _id not in _sync:
+            raise Exception("Search process was never finished")
+        _result = _sync[_id]
+        del _sync[_id]
+        return _result
     except Exception as exc:
         # inform about exception and retry
         logger.error(exc)
