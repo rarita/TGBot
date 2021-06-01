@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Regex
     CallbackQueryHandler
 from config import TOKEN
 import logging
-from functions import get_iata, get_url, get_iata_be
+from functions import get_iata, get_url, get_iata_be, get_city_by_coords
 from chat_utils import *
 
 # set russian locale
@@ -49,12 +49,18 @@ def start(update, context):
 def choose(update, context):
     _loc = update.message.location
     if _loc is not None:
-        current_position = (_loc.longitude, _loc.latitude)
-        coords = f"{current_position[0]},{current_position[1]}"
-        query = get_address_from_coords(coords)
-        guesses = get_iata_be(query)
-        update.message.reply_text(query) # не забудь здесь очистить клавиатуру как сделано ниже
-        return CHOOSE_DATE
+        user = update.message.from_user
+        logger.info(
+            "Parsed coords for user %s (%s) are %f, %f",
+            user.id, user.first_name, _loc.latitude, _loc.longitude
+        )
+        city = get_city_by_coords(_loc.latitude, _loc.longitude)
+        context.user_data['src'] = city
+        update.message.reply_text(
+            "Твоей точкой отправления будет {}! Куда отправимся?".format(city['value']),
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
     else:
         update.message.reply_text(
             "Хорошо, введи город отправления:",

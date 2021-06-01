@@ -28,6 +28,15 @@ def get_iata_be(query):
     return requests.get(rq_url, rq_params).json()
 
 
+def get_city_by_coords(lat, long):
+    rq_url = "{}/city_by_coords".format(config.BACKEND_ORIGIN)
+    rq_params = {
+        "latitude": lat,
+        "longitude": long
+    }
+    return requests.get(rq_url, rq_params).json()
+
+
 def total_price_for_ticket(itin, price_param='cost'):
     return reduce(
         lambda acc, item: acc + item,
@@ -123,5 +132,3 @@ def get_address_from_coords(coords):
 
     except Exception as e:
         return "Не могу определить адрес по этой локации.\n\n Попробуй снова:"
-
-
