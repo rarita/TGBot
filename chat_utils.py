@@ -27,12 +27,11 @@ FROMSELF_BUTTON = "Введу самостоятельно"
 
 def kbrd_send_location():
     kbrd = [
-        [KeyboardButton(LOCATION_BUTTON)],
+        [KeyboardButton(LOCATION_BUTTON, request_location=True)],
         [KeyboardButton(FROMSELF_BUTTON)]
     ]
     return telegram.ReplyKeyboardMarkup(
         kbrd,
-        request_location=True,
         resize_keyboard=True,
         one_time_keyboard=True
     )

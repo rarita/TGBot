@@ -43,21 +43,20 @@ def start(update, context):
 
 
 def choose(update, context):
-    message = update.message.text
-    if message == FROMSELF_BUTTON:
-        return PARSE_CITY
+    _loc = update.message.location
+    if _loc is not None:
+        current_position = (_loc.longitude, _loc.latitude)
+        coords = f"{current_position[0]},{current_position[1]}"
+        query = get_address_from_coords(coords)
+        guesses = get_iata_be(query)
+        update.message.reply_text(query) # не забудь здесь очистить клавиатуру как сделано ниже
+        return CHOOSE_DATE
     else:
-        return CITY_BUTTON
-
-
-def location(update, context):
-    message = update.message
-    current_position = (message.location.longitude, message.location.latitude)
-    coords = f"{current_position[0]},{current_position[1]}"
-    query = get_address_from_coords(coords)
-    guesses = get_iata_be(query)
-    update.message.reply_text(query)
-    return CHOOSE_DATE
+        update.message.reply_text(
+            "Хорошо, введи город отправления:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
 
 
 def parse_city(update, context):
@@ -222,9 +221,7 @@ def main():
 
         states={
 
-            CHOOSE_CITY_BUTTON: [MessageHandler(Filters.text, choose, pass_user_data=True)],
-
-            CITY_BUTTON: [MessageHandler(Filters.text, location, pass_user_data=True)],
+            CHOOSE_CITY_BUTTON: [MessageHandler((Filters.text | Filters.location), choose, pass_user_data=True)],
 
             PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
 
