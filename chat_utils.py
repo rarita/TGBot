@@ -1,9 +1,11 @@
 import datetime
 import logging
+import time
 
 import telegram
 from telegram import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket, get_airport_flavor_be
+from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket, get_address_from_coords, \
+    get_iata_be
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,6 +21,20 @@ TODAY_BUTTON = "Сегодня"
 TOMORROW_BUTTON = "Завтра"
 DATOMORROW_BUTTON = "Послезавтра"
 CHOOSE_DATE_BUTTON = "Укажу дату вылета сам"
+LOCATION_BUTTON = "Отправить свою локацию 🗺️"
+FROMSELF_BUTTON = "Введу самостоятельно"
+
+
+def kbrd_send_location():
+    kbrd = [
+        [KeyboardButton(LOCATION_BUTTON, request_location=True)],
+        [KeyboardButton(FROMSELF_BUTTON)]
+    ]
+    return telegram.ReplyKeyboardMarkup(
+        kbrd,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
 
 
 def get_ch_city_text(context):
@@ -89,8 +105,8 @@ def get_itin_route(itin):
     accum = []
     for it in itin['itin']:
 
-        src_txt = it['src_flavor']
-        dst_txt = it['dest_flavor']
+        src_txt = get_airport_flavor(it['source'])
+        dst_txt = get_airport_flavor(it['destination'])
 
         if len(accum) == 0:
             accum.append(src_txt)
@@ -116,8 +132,8 @@ def get_itin_route_flavor(itin):
 
 def itin_to_btn(itin):
     text = "Купить билет {} - {} за {} {}".format(
-        itin['src_flavor'],
-        itin['dest_flavor'],
+        get_airport_flavor(itin['source']),
+        get_airport_flavor(itin['destination']),
         "EUR",
         itin['baseCost']
     )
@@ -126,8 +142,8 @@ def itin_to_btn(itin):
 
 # defines rendering behavior to draw a single itinerary
 def render_itinerary(itin, update):
-    dep_time = itin['itin'][0]['departureTime']
-    arr_time = itin['itin'][-1]['arrivalTime']
+    dep_time = list_to_py_datetime(itin['itin'][0]['departureTime'])
+    arr_time = list_to_py_datetime(itin['itin'][-1]['arrivalTime'])
     src = itin['src']
     dst = itin['dst']
     c_src = itin['c_src']
@@ -159,44 +175,6 @@ def render_itinerary(itin, update):
     )
 
 
-# cast property gathered from propertyList
-# to an appropriate type
-def map_property_from_prop_list(prop):
-    k = prop['key']
-    v = prop['value']
-
-    if k == "cost" or k == "baseCost":  # specification says: int
-        return float(v)
-    elif k == "departureTime" or k == "arrivalTime" or k == "foundAt":  # date and time
-        return datetime.datetime.fromisoformat(v.split('.')[0])
-    elif k == "ttl" or k == "flightNumber":  # int
-        return int(v)
-
-    return v
-
-
-# check if specified itin container has propertyList-defined
-# properties, if it is - transform those to regular properties
-def fix_itin(itin):
-    for it in itin['itin']:
-        if 'propertyList' in it:
-            logger.info("Found itinerary with properties represented by propertyList: " + str(it['id']))
-            # persist flavors
-            it['src_flavor'] = get_airport_flavor_be(it['startNode'])
-            it['dest_flavor'] = get_airport_flavor_be(it['endNode'])
-            for prop in it['propertyList']:
-                it[prop['key']] = map_property_from_prop_list(prop)
-        else:
-            # transform list dates to datetime objects
-            it['arrivalTime'] = list_to_py_datetime(it['arrivalTime'])
-            it['departureTime'] = list_to_py_datetime(it['departureTime'])
-            it['foundAt'] = list_to_py_datetime(it['foundAt'])
-            # set flavors
-            it['src_flavor'] = get_airport_flavor(it['source'])
-            it['dest_flavor'] = get_airport_flavor(it['destination'])
-    return itin
-
-
 # find flights for user-defined context and display it
 def find_flights_for_context(update, context, _sync, _id):
     udata = context.user_data
@@ -214,10 +192,7 @@ def find_flights_for_context(update, context, _sync, _id):
         logger.info("Found flights for user %s (%s)", user.id, user.first_name)
         logger.info("Found %d raw itineraries by user query", len(raw_itins))
 
-        # map properties to protocol format (k-v) if needed
-        fixed_itins = list(map(fix_itin, raw_itins))
-
-        filt_itins = filter_itineraries_be(fixed_itins)
+        filt_itins = filter_itineraries_be(raw_itins)
 
         if len(filt_itins) == 0:
             update.message.reply_text("К сожалению, по указанному запросу перелетов не найдено :(")

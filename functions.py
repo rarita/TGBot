@@ -7,6 +7,7 @@ from functools import reduce
 
 flavor_cache = {}
 
+
 def get_iata(city):
     url = 'http://autocomplete.travelpayouts.com/places2?term=' + city + ''
     resp_text = requests.get(url).text
@@ -101,3 +102,26 @@ def get_price_one_way(departure_iata, arrival_iata):
         return data['best_prices'][0]
     else:
         return None
+
+
+# функция для получения адреса по координатам.
+def get_address_from_coords(coords):
+    PARAMS = {
+        "apikey": "c89aeda0-7dde-4c5a-9d4a-4f8f2911d83d",
+        "format": "json",
+        "lang": "ru_RU",
+        "kind": "house",
+        "geocode": coords
+    }
+
+    try:
+        r = requests.get(url="https://geocode-maps.yandex.ru/1.x/", params=PARAMS)
+        json_data = r.json()
+        geo_city = json_data["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["metaDataProperty"][
+            "GeocoderMetaData"]["AddressDetails"]["Country"]["AddressLine"][1]
+        return geo_city
+
+    except Exception as e:
+        return "Не могу определить адрес по этой локации.\n\n Попробуй снова:"
+
+

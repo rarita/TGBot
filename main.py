@@ -13,6 +13,7 @@ from chat_utils import *
 
 # set russian locale
 import locale
+
 locale.setlocale(locale.LC_ALL, 'ru_RU')
 
 # Enable logging
@@ -25,11 +26,13 @@ logger = logging.getLogger(__name__)
 TYPING_DEPARTURE, \
 TYPING_ARRIVAL, \
 PARSE_CITY, \
+CHOOSE_CITY_BUTTON, \
+CITY_BUTTON, \
 CHOOSE_CITY, \
 CHOOSE_DATE, \
 PARSE_DATE, \
 SHOW_FLIGHTS, \
-END_CONV = range(8)
+END_CONV = range(10)
 
 _sync = {}
 
@@ -37,10 +40,27 @@ def start(update, context):
     user = update.message.from_user
     logger.info("User %s has said that her name %s.", user.id, user.first_name)
     update.message.reply_text(
-        "Привет, " + user.first_name + "! Введи город отправления",
-        reply_markup=ReplyKeyboardRemove()
+        "Привет, " + user.first_name + "! Введи город отправления или отправь геопозицию.",
+        reply_markup=kbrd_send_location()
     )
-    return PARSE_CITY
+    return CHOOSE_CITY_BUTTON
+
+
+def choose(update, context):
+    _loc = update.message.location
+    if _loc is not None:
+        current_position = (_loc.longitude, _loc.latitude)
+        coords = f"{current_position[0]},{current_position[1]}"
+        query = get_address_from_coords(coords)
+        guesses = get_iata_be(query)
+        update.message.reply_text(query) # не забудь здесь очистить клавиатуру как сделано ниже
+        return CHOOSE_DATE
+    else:
+        update.message.reply_text(
+            "Хорошо, введи город отправления:",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
 
 
 def parse_city(update, context):
@@ -67,6 +87,7 @@ def parse_city(update, context):
                 reply_markup=kbrd_pick_date()
             )
             return CHOOSE_DATE
+
 
     logger.info("Too many cities were found by query %s: %d", query, len(guesses))
     context.user_data['city_guesses'] = guesses
@@ -178,6 +199,7 @@ def end_conversation(update, context):
     update.message.reply_text("Спасибо за пользование нашим ботом!\nЧтобы начать новый поиск, введи /start!")
     return END_CONV
 
+
 def cancel(update, context):
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
@@ -212,6 +234,8 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
+
+            CHOOSE_CITY_BUTTON: [MessageHandler((Filters.text | Filters.location), choose, pass_user_data=True)],
 
             PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
 
