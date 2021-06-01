@@ -4,7 +4,8 @@ import time
 
 import telegram
 from telegram import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket
+from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket, get_address_from_coords, \
+    get_iata_be
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -33,6 +34,16 @@ def kbrd_send_location():
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
+
+# функция будет использоваться, если пользователь послал локацию.
+def location(update, context):
+    message = update.message
+    current_position = (message.location.longitude, message.location.latitude)  # getting long. & lat.
+    coords = f"{current_position[0]},{current_position[1]}"
+    query = get_address_from_coords(coords)
+    guesses = get_iata_be(query)
+    update.message.reply_text(guesses)
 
 
 def get_ch_city_text(context):

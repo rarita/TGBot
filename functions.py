@@ -87,16 +87,7 @@ def get_price_one_way(departure_iata, arrival_iata):
         return None
 
 
-# Эта функция будет использоваться, если пользователь послал локацию.
-def location(update, context):
-    message = update.message # получаем объект сообщения (локации)
-    current_position = (message.location.longitude, message.location.latitude) # getting long. & lat.
-    coords = f"{current_position[0]},{current_position[1]}" # create str of long., lat.
-    geo_city = get_address_from_coords(coords) # отправляем координаты в нашу функцию получения адреса
-    update.message.reply_text(geo_city) # возвращаем результат пользователю в боте
-
-
-# это наша функция для получения адреса по координатам. С ней мы знакомы.
+# функция для получения адреса по координатам.
 def get_address_from_coords(coords):
     PARAMS = {
         "apikey": "c89aeda0-7dde-4c5a-9d4a-4f8f2911d83d",
@@ -114,5 +105,6 @@ def get_address_from_coords(coords):
         return geo_city
 
     except Exception as e:
-        # единственное что тут изменилось, так это сообщение об ошибке.
         return "Не могу определить адрес по этой локации.\n\n Попробуй снова:"
+
+

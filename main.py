@@ -10,6 +10,7 @@ from chat_utils import *
 
 # set russian locale
 import locale
+
 locale.setlocale(locale.LC_ALL, 'ru_RU')
 
 # Enable logging
@@ -33,7 +34,7 @@ def start(update, context):
     user = update.message.from_user
     logger.info("User %s has said that her name %s.", user.id, user.first_name)
     update.message.reply_text(
-        "Привет, " + user.first_name + "! Введи город отправления",
+        "Привет, " + user.first_name + "! Введи город отправления или отправь геопозицию.",
         reply_markup=kbrd_send_location()
     )
     return PARSE_CITY
