@@ -5,6 +5,7 @@ import config
 
 from functools import reduce
 
+flavor_cache = {}
 
 def get_iata(city):
     url = 'http://autocomplete.travelpayouts.com/places2?term=' + city + ''
@@ -70,6 +71,21 @@ def get_itineraries_be(src_iata, dest_iata, outbound_from, outbound_to):
         ]
     }
     return requests.post(rq_url, json=rq_json).json()
+
+
+def get_airport_flavor_be(node_id):
+    # check if data was cached
+    if node_id in flavor_cache:
+        return flavor_cache[node_id]
+
+    rq_url = "{}/airport_flavor".format(config.BACKEND_ORIGIN)
+    rq_params = {
+        "nodeId": node_id
+    }
+    rsp = requests.get(rq_url, rq_params).text
+
+    flavor_cache[node_id] = rsp
+    return rsp
 
 
 def get_url(departure_iata, arrival_iata, day_month):
