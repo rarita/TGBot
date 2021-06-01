@@ -198,8 +198,10 @@ def fix_itin(itin):
 
 
 # find flights for user-defined context and display it
-def find_flights_for_context(update, context):
+def find_flights_for_context(update, context, _sync, _id):
     udata = context.user_data
+    user = update.message.from_user
+    logger.info("Searching flights for user %s (%s)", user.id, user.first_name)
     update.message.reply_text("Начинаю искать перелеты по твоему запросу...")
 
     try:
@@ -209,6 +211,7 @@ def find_flights_for_context(update, context):
             udata['out_date'],
             udata['out_date']
         )
+        logger.info("Found flights for user %s (%s)", user.id, user.first_name)
         logger.info("Found %d raw itineraries by user query", len(raw_itins))
 
         # map properties to protocol format (k-v) if needed
@@ -231,4 +234,6 @@ def find_flights_for_context(update, context):
     del context.user_data['dest']
     del context.user_data['out_date']
     update.message.reply_text("Спасибо за пользование нашим ботом!\nЧтобы начать новый поиск, введи /start!")
-    return END_CONV
+    logger.info("Goodbye (END_CONV) for user %s (%s)", user.id, user.first_name)
+    _sync[_id] = END_CONV
+    return

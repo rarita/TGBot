@@ -1,4 +1,7 @@
 import datetime
+import threading
+import uuid
+from multiprocessing.context import Process
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, bot
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, RegexHandler, ConversationHandler, \
@@ -28,6 +31,7 @@ PARSE_DATE, \
 SHOW_FLIGHTS, \
 END_CONV = range(8)
 
+_sync = {}
 
 def start(update, context):
     user = update.message.from_user
@@ -135,7 +139,17 @@ def choose_date(update, context):
         context.user_data['out_date'].strftime("%d.%m.%Y")
     )
 
-    return find_flights_for_context(update, context)
+    # start flight search in parallel
+    _id = uuid.uuid1()
+    _search = threading.Thread(target=find_flights_for_context, args=(update, context, _sync, _id,))
+    _search.start()
+    _search.join()
+
+    if _id not in _sync:
+        raise Exception("Search process was never finished")
+    _result = _sync[_id]
+    del _sync[_id]
+    return _result
 
 
 def parse_date(update, context):
