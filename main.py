@@ -23,11 +23,13 @@ logger = logging.getLogger(__name__)
 TYPING_DEPARTURE, \
 TYPING_ARRIVAL, \
 PARSE_CITY, \
+CHOOSE_CITY_BUTTON, \
+CITY_BUTTON, \
 CHOOSE_CITY, \
 CHOOSE_DATE, \
 PARSE_DATE, \
 SHOW_FLIGHTS, \
-END_CONV = range(8)
+END_CONV = range(10)
 
 
 def start(update, context):
@@ -37,7 +39,25 @@ def start(update, context):
         "Привет, " + user.first_name + "! Введи город отправления или отправь геопозицию.",
         reply_markup=kbrd_send_location()
     )
-    return PARSE_CITY
+    return CHOOSE_CITY_BUTTON
+
+
+def choose(update, context):
+    message = update.message.text
+    if message == FROMSELF_BUTTON:
+        return PARSE_CITY
+    else:
+        return CITY_BUTTON
+
+
+def location(update, context):
+    message = update.message
+    current_position = (message.location.longitude, message.location.latitude)
+    coords = f"{current_position[0]},{current_position[1]}"
+    query = get_address_from_coords(coords)
+    guesses = get_iata_be(query)
+    update.message.reply_text(query)
+    return CHOOSE_DATE
 
 
 def parse_city(update, context):
@@ -64,6 +84,7 @@ def parse_city(update, context):
                 reply_markup=kbrd_pick_date()
             )
             return CHOOSE_DATE
+
 
     logger.info("Too many cities were found by query %s: %d", query, len(guesses))
     context.user_data['city_guesses'] = guesses
@@ -200,6 +221,10 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
+
+            CHOOSE_CITY_BUTTON: [MessageHandler(Filters.text, choose, pass_user_data=True)],
+
+            CITY_BUTTON: [MessageHandler(Filters.text, location, pass_user_data=True)],
 
             PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
 

@@ -7,6 +7,7 @@ from functools import reduce
 
 flavor_cache = {}
 
+
 def get_iata(city):
     url = 'http://autocomplete.travelpayouts.com/places2?term=' + city + ''
     resp_text = requests.get(url).text

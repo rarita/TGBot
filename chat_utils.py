@@ -4,7 +4,8 @@ import time
 
 import telegram
 from telegram import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
-from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket
+from functions import get_itineraries_be, filter_itineraries_be, total_price_for_ticket, get_address_from_coords, \
+    get_iata_be
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,24 +21,14 @@ TODAY_BUTTON = "Сегодня"
 TOMORROW_BUTTON = "Завтра"
 DATOMORROW_BUTTON = "Послезавтра"
 CHOOSE_DATE_BUTTON = "Укажу дату вылета сам"
-LOCATION_BUTTON =  "Отправить свою локацию 🗺️"
+LOCATION_BUTTON = "Отправить свою локацию 🗺️"
+FROMSELF_BUTTON = "Введу самостоятельно"
 
 
 def kbrd_send_location():
     kbrd = [
-        [KeyboardButton(LOCATION_BUTTON)]
-    ]
-    return telegram.ReplyKeyboardMarkup(
-        kbrd,
-        request_location=True,
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
-
-
-def kbrd_send_location():
-    kbrd = [
-        [KeyboardButton(LOCATION_BUTTON)]
+        [KeyboardButton(LOCATION_BUTTON)],
+        [KeyboardButton(FROMSELF_BUTTON)]
     ]
     return telegram.ReplyKeyboardMarkup(
         kbrd,
