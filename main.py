@@ -1,4 +1,5 @@
 import datetime
+import re
 import threading
 import uuid
 from multiprocessing.context import Process
@@ -40,9 +41,12 @@ def start(update, context):
     user = update.message.from_user
 
     # cleanup lock state as finished
-    del context.user_data['src']
-    del context.user_data['dest']
-    del context.user_data['out_date']
+    if 'src' in context.user_data:
+        del context.user_data['src']
+    if 'dest' in context.user_data:
+        del context.user_data['dest']
+    if 'out_date' in context.user_data:
+        del context.user_data['out_date']
 
     logger.info("User started interaction: %s (%s)", user.id, user.first_name)
     update.message.reply_text(
@@ -77,6 +81,15 @@ def choose(update, context):
 
 def parse_city(update, context):
     query = update.message.text
+
+    # input validation
+    if len(query) < 4:
+        update.message.reply_text("Пожалуйста, сформулируйте запрос более подробно")
+        return PARSE_CITY
+    elif len(re.sub('[A-Za-zА-Яа-я-]+', '', query)) >= len(query) / 2 - 1:
+        update.message.reply_text("Город введен некорректно :( Попробуй ещё раз!")
+        return PARSE_CITY
+
     guesses = get_iata_be(query)
 
     if len(guesses) == 0:
@@ -93,6 +106,9 @@ def parse_city(update, context):
             )
             return PARSE_CITY
         else:
+            if context.user_data['src']['id'] == guesses[0]['id']:
+                update.message.reply_text("Выбери, пожалуйста, другой город")
+                return PARSE_CITY
             context.user_data['dest'] = guesses[0]
             update.message.reply_text(
                 "Замечательно! Летим в {} Теперь нужно выбрать дату вылета:".format(guesses[0]['value']),
@@ -133,6 +149,12 @@ def choose_city(update, context):
         )
         return PARSE_CITY
 
+    if context.user_data['src']['id'] == guess['id']:
+        update.message.reply_text(
+            "Выбери, пожалуйста, другой город (используй клавиатуру)",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return PARSE_CITY
     context.user_data['dest'] = guess
     update.message.reply_text(
         "Замечательно! Теперь нужно выбрать дату вылета:",
@@ -153,11 +175,11 @@ def choose_date(update, context):
         timedelta = 2
     else:
         if text == CHOOSE_DATE_BUTTON:
-            descr = "Хорошо, введи время вылета сам, как пример - {}"
+            descr = "Хорошо, введи время вылета сам, как пример - {}, или даже так - {}"
         else:
-            descr = "Такого времени я не знаю :/\nПопробуй ввести время вручную, например {}"
+            descr = "Такого времени я не знаю :/\nПопробуй ввести время вручную, например {} или {}"
         update.message.reply_text(
-            descr.format(today.strftime("%d.%m.%Y")),
+            descr.format(today.strftime("%d.%m.%Y"), today.strftime("%d.%m")),
             reply_markup=ReplyKeyboardRemove()
         )
         return PARSE_DATE
@@ -190,7 +212,15 @@ def parse_date(update, context):
     decline_reason = "Не удалось прочитать введенную дату"
 
     try:
-        p_date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
+        dot_count = text.count('.')
+        if dot_count == 2:
+            p_date = datetime.datetime.strptime(text, "%d.%m.%Y").date()
+        elif dot_count == 1:
+            p_date = datetime.datetime.strptime(text, "%d.%m").date()
+            p_date = p_date.replace(year=datetime.date.today().year)
+        else:
+            raise ValueError("Invalid date")
+
         if p_date < datetime.date.today():
             decline_reason = "Дата вылета не может быть в прошлом"
             raise Exception(decline_reason)

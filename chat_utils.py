@@ -192,6 +192,9 @@ def find_flights_for_context(update, context, _sync, _id):
         logger.info("Found flights for user %s (%s)", user.id, user.first_name)
         logger.info("Found %d raw itineraries by user query", len(raw_itins))
 
+        if len(raw_itins) < 5 or "status" in raw_itins:
+            logger.debug("Server responded with: %s", str(raw_itins))
+
         filt_itins = filter_itineraries_be(raw_itins)
 
         if len(filt_itins) == 0:
@@ -202,7 +205,11 @@ def find_flights_for_context(update, context, _sync, _id):
 
     except Exception as exc:
         logger.error("Exception occurred during itinerary search", exc)
-        # todo retry one time, then fail miserably
+        update.message.reply_text(
+            "Похоже, сервису настолько понравились выгодные цены на билеты по твоему маршруту, " +
+            "что он решил не делиться с тобой и сам полететь в {}...\n Если ошибка будет повторяться, " +
+            "пожалуйста, сообщи администрации сервиса.".format(udata['dest']['value'].split(',')[0])
+        )
 
     # cleanup lock state as finished
     del context.user_data['src']
