@@ -38,9 +38,15 @@ _sync = {}
 
 def start(update, context):
     user = update.message.from_user
-    logger.info("User %s has said that her name %s.", user.id, user.first_name)
+
+    # cleanup lock state as finished
+    del context.user_data['src']
+    del context.user_data['dest']
+    del context.user_data['out_date']
+
+    logger.info("User started interaction: %s (%s)", user.id, user.first_name)
     update.message.reply_text(
-        "Привет, " + user.first_name + "! Введи город отправления или отправь геопозицию.",
+        "Привет, " + user.first_name + "! Введи город отправления или отправь свою геопозицию",
         reply_markup=kbrd_send_location()
     )
     return CHOOSE_CITY_BUTTON
