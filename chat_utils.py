@@ -20,6 +20,19 @@ TODAY_BUTTON = "Сегодня"
 TOMORROW_BUTTON = "Завтра"
 DATOMORROW_BUTTON = "Послезавтра"
 CHOOSE_DATE_BUTTON = "Укажу дату вылета сам"
+LOCATION_BUTTON = "Отправить свою локацию 🗺️"
+
+
+def kbrd_send_location():
+    kbrd = [
+        [KeyboardButton(LOCATION_BUTTON)]
+    ]
+    return telegram.ReplyKeyboardMarkup(
+        kbrd,
+        request_location=True,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
 
 
 def get_ch_city_text(context):

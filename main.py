@@ -34,7 +34,7 @@ def start(update, context):
     logger.info("User %s has said that her name %s.", user.id, user.first_name)
     update.message.reply_text(
         "Привет, " + user.first_name + "! Введи город отправления",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=kbrd_send_location()
     )
     return PARSE_CITY
 
@@ -163,6 +163,7 @@ def parse_date(update, context):
 def end_conversation(update, context):
     update.message.reply_text("Спасибо за пользование нашим ботом!\nЧтобы начать новый поиск, введи /start!")
     return END_CONV
+
 
 def cancel(update, context):
     user = update.message.from_user
