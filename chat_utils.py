@@ -218,10 +218,6 @@ def find_flights_for_context(update, context, _sync, _id):
     udata = context.user_data
     user = update.message.from_user
     logger.info("Searching flights for user %s (%s)", user.id, user.first_name)
-    update.message.reply_text(
-        "Начинаю искать перелеты по твоему запросу...\n" +
-        "Это может занять некоторое время..."
-    )
 
     try:
         raw_itins = get_itineraries_be(

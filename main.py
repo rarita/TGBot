@@ -198,6 +198,14 @@ def choose_date(update, context):
     _id = uuid.uuid1()
     _search = threading.Thread(target=find_flights_for_context, args=(update, context, _sync, _id,))
     _search.start()
+    msg = update.message.reply_text(
+        "Начинаю искать перелеты по твоему запросу... \U0001F30D \n" +
+        "Это может занять некоторое время... Начинай собирать чемоданы!"
+    )
+    while _search.is_alive():
+        time.sleep(0.5)  # delay execution
+        msg = roll_msg(msg)
+
     _search.join()
 
     if _id not in _sync:
@@ -205,6 +213,22 @@ def choose_date(update, context):
     _result = _sync[_id]
     del _sync[_id]
     return _result
+
+
+_globes = ['\U0001F30D', '\U0001F30E', '\U0001F30F']
+def roll_msg(msg, _iter=0):
+    _text = msg.text
+    for globe in _globes:
+        globe_pos = _text.find(globe)
+        if globe_pos == -1:
+            continue
+        _text = _text.replace(globe, "")
+        # find next globe
+        idx = (_globes.index(globe) + 1) % len(_globes)
+        _text = _text[:globe_pos] + _globes[idx] + _text[globe_pos:]
+        break
+
+    return msg.edit_text(_text)
 
 
 def parse_date(update, context):
@@ -230,6 +254,14 @@ def parse_date(update, context):
         _id = uuid.uuid1()
         _search = threading.Thread(target=find_flights_for_context, args=(update, context, _sync, _id,))
         _search.start()
+        msg = update.message.reply_text(
+            "Начинаю искать перелеты по твоему запросу... \U0001F30D \n" +
+            "Это может занять некоторое время... Начинай собирать чемоданы!"
+        )
+        while _search.is_alive():
+            time.sleep(0.5)  # delay execution
+            msg = roll_msg(msg)
+
         _search.join()
 
         if _id not in _sync:
