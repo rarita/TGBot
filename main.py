@@ -83,7 +83,7 @@ def parse_city(update, context):
     query = update.message.text
 
     # input validation
-    if len(query) < 4:
+    if len(query) < 3:
         update.message.reply_text("Пожалуйста, сформулируйте запрос более подробно")
         return PARSE_CITY
     elif len(re.sub('[A-Za-zА-Яа-я-]+', '', query)) >= len(query) / 2 - 1:
@@ -287,17 +287,17 @@ def main():
 
         states={
 
-            CHOOSE_CITY_BUTTON: [MessageHandler((Filters.text | Filters.location), choose, pass_user_data=True)],
+            CHOOSE_CITY_BUTTON: [MessageHandler((Filters.text | Filters.location), choose, pass_user_data=True, run_async=True)],
 
-            PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True)],
+            PARSE_CITY: [MessageHandler(Filters.text, parse_city, pass_user_data=True, run_async=True)],
 
-            CHOOSE_CITY: [MessageHandler(Filters.text, choose_city, pass_user_data=True)],
+            CHOOSE_CITY: [MessageHandler(Filters.text, choose_city, pass_user_data=True, run_async=True)],
 
-            CHOOSE_DATE: [MessageHandler(Filters.text, choose_date, pass_user_data=True)],
+            CHOOSE_DATE: [MessageHandler(Filters.text, choose_date, pass_user_data=True, run_async=True)],
 
-            PARSE_DATE: [MessageHandler(Filters.text, parse_date, pass_user_data=True)],
+            PARSE_DATE: [MessageHandler(Filters.text, parse_date, pass_user_data=True, run_async=True)],
 
-            END_CONV: [MessageHandler(Filters.text, end_conversation, pass_user_data=True)]
+            END_CONV: [MessageHandler(Filters.text, end_conversation, pass_user_data=True, run_async=True)]
 
         },
 
