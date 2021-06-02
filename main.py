@@ -50,7 +50,7 @@ def start(update, context):
 
     logger.info("User started interaction: %s (%s)", user.id, user.first_name)
     update.message.reply_text(
-        "Привет, " + user.first_name + "! Введи город отправления или отправь свою геопозицию",
+        "Привет, " + user.first_name + "! \U0001F44B Введи город отправления или отправь свою геопозицию",
         reply_markup=kbrd_send_location()
     )
     return CHOOSE_CITY_BUTTON
@@ -67,16 +67,18 @@ def choose(update, context):
         city = get_city_by_coords(_loc.latitude, _loc.longitude)
         context.user_data['src'] = city
         update.message.reply_text(
-            "Твоей точкой отправления будет {}! Куда отправимся?".format(city['value']),
+            "Твоей точкой отправления будет {} \U0001F4CD! Куда отправимся?".format(city['value']),
             reply_markup=ReplyKeyboardRemove()
         )
         return PARSE_CITY
-    else:
+    elif update.message.text == FROMSELF_BUTTON:
         update.message.reply_text(
             "Хорошо, введи город отправления:",
             reply_markup=ReplyKeyboardRemove()
         )
         return PARSE_CITY
+    else:
+        return parse_city(update, context)
 
 
 def parse_city(update, context):
@@ -84,17 +86,17 @@ def parse_city(update, context):
 
     # input validation
     if len(query) < 3:
-        update.message.reply_text("Пожалуйста, сформулируйте запрос более подробно")
+        update.message.reply_text("Пожалуйста, сформулируйте запрос более подробно \U0001F914")
         return PARSE_CITY
     elif len(re.sub('[A-Za-zА-Яа-я-]+', '', query)) >= len(query) / 2 - 1:
-        update.message.reply_text("Город введен некорректно :( Попробуй ещё раз!")
+        update.message.reply_text("Город введен некорректно \U0001F625 Попробуй ещё раз!")
         return PARSE_CITY
 
     guesses = get_iata_be(query)
 
     if len(guesses) == 0:
         logger.info("Can't found city by query %s", query)
-        update.message.reply_text("К сожалению, не могу найти такой город... Попробуем ещё раз?")
+        update.message.reply_text("К сожалению, не могу найти такой город \U0001F625 Попробуем ещё раз?")
         update.message.reply_text(get_ch_city_text(context))
         return PARSE_CITY
     if len(guesses) == 1:
@@ -102,7 +104,7 @@ def parse_city(update, context):
         if "src" not in context.user_data:
             context.user_data['src'] = guesses[0]
             update.message.reply_text(
-                "Отлично! Отправляемся из {} Куда отправимся?".format(guesses[0]['value'])
+                "Отлично! Отправляемся из {} Куда отправимся? \U0001F5FA".format(guesses[0]['value'])
             )
             return PARSE_CITY
         else:
@@ -111,7 +113,7 @@ def parse_city(update, context):
                 return PARSE_CITY
             context.user_data['dest'] = guesses[0]
             update.message.reply_text(
-                "Замечательно! Летим в {} Теперь нужно выбрать дату вылета:".format(guesses[0]['value']),
+                "Замечательно! Летим в {} Теперь нужно выбрать дату вылета \U0001F4C5:".format(guesses[0]['value']),
                 reply_markup=kbrd_pick_date()
             )
             return CHOOSE_DATE
@@ -120,7 +122,7 @@ def parse_city(update, context):
     logger.info("Too many cities were found by query %s: %d", query, len(guesses))
     context.user_data['city_guesses'] = guesses
     update.message.reply_text(
-        "Я нашел несколько городов по твоему запросу, выбери верный :)",
+        "Я нашел несколько городов по твоему запросу, выбери верный \U0001F4CD",
         reply_markup=kbrd_markup_for_correction(guesses)
     )
     return CHOOSE_CITY
@@ -144,20 +146,20 @@ def choose_city(update, context):
     if "src" not in context.user_data:
         context.user_data['src'] = guess
         update.message.reply_text(
-            "Отлично! Куда отправимся?",
+            "Отлично! Куда отправимся? \U0001F5FA",
             reply_markup=ReplyKeyboardRemove()
         )
         return PARSE_CITY
 
     if context.user_data['src']['id'] == guess['id']:
         update.message.reply_text(
-            "Выбери, пожалуйста, другой город (используй клавиатуру)",
+            "Выбери, пожалуйста, другой город (используй клавиатуру) \U0001F4CD",
             reply_markup=ReplyKeyboardRemove()
         )
         return PARSE_CITY
     context.user_data['dest'] = guess
     update.message.reply_text(
-        "Замечательно! Теперь нужно выбрать дату вылета:",
+        "Замечательно! Теперь нужно выбрать дату вылета \U0001F4C5:",
         reply_markup=kbrd_pick_date()
     )
     return CHOOSE_DATE
@@ -200,7 +202,7 @@ def choose_date(update, context):
     _search.start()
     msg = update.message.reply_text(
         "Начинаю искать перелеты по твоему запросу... \U0001F30D \n" +
-        "Это может занять некоторое время... Начинай собирать чемоданы!"
+        "Это может занять некоторое время... Пора собирать чемоданы! \U0001F334 \U0001F9F3"
     )
     while _search.is_alive():
         time.sleep(0.5)  # delay execution
@@ -256,7 +258,7 @@ def parse_date(update, context):
         _search.start()
         msg = update.message.reply_text(
             "Начинаю искать перелеты по твоему запросу... \U0001F30D \n" +
-            "Это может занять некоторое время... Начинай собирать чемоданы!"
+            "Это может занять некоторое время... Пора собирать чемоданы! \U0001F334 \U0001F9F3"
         )
         while _search.is_alive():
             time.sleep(0.5)  # delay execution
@@ -280,7 +282,7 @@ def parse_date(update, context):
 
 # lock user at the end of conversation
 def end_conversation(update, context):
-    update.message.reply_text("Спасибо за пользование нашим ботом!\nЧтобы начать новый поиск, введи /start!")
+    update.message.reply_text("Спасибо за пользование нашим ботом \U0001F917!\nЧтобы начать новый поиск, введи /start!")
     return END_CONV
 
 

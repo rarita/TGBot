@@ -150,12 +150,12 @@ def render_itinerary(itin, update):
     c_dst = itin['c_dst']
 
     m_text_template = """
-{} - {}
-Отправление {} ({})
-Прибытие {}
-Цена: {}
+\U00002708 {} - {}
+\U0001F6EB Отправление {} ({})
+\U0001F6EC Прибытие {}
+\U0001F4B6 Цена: {}
     
-Маршрут: {} ({})
+\U0001F5FA Маршрут: {} ({})
     """.format(
         src['name_RU'] + ', ' + c_src['name_RU'],
         dst['name_RU'] + ', ' + c_dst['name_RU'],
